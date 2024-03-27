@@ -1,0 +1,146 @@
+/*
+ * File:   newavr-main.c
+ * Author: Lenovo
+ *
+ * Created on March 12, 2024, 9:57 AM
+ */
+
+#include <stdio.h>
+#include <avr/io.h>
+#define F_CPU               4000000UL
+#include <util/delay.h>
+#include <xc.h>
+#include <avr/interrupt.h>
+#include <avr/cpufunc.h>
+////MEMORY REGISTERS
+#define Read_Status_Register 0x05
+#define write_Status_Register 0x01
+#define Write_Enable 0x06
+#define  Write_Disable 0x04
+#define Read_Memory 0x03
+#define write_Memory 0x02
+////Accelerometer REGISTERS
+#define DEVID_address 0x00
+#define THRESH_TAP_address 0x1D
+#define OFSX_address 0x1E
+#define OFSY_address 0x1F
+#define OFSZ _address 0x20
+#define DUR_address 0x21
+#define Latent_address 0x22
+#define Window_address 0x23
+#define THRESH_ACT_address 0x24
+#define THRESH_INACT_address 0x25
+#define PTIME_INACT_address 0x26
+#define ACT_INACT_CTL_address 0x27
+#define THRESH_FF_address 0x28
+#define TIME_FF_address 0x29
+#define TAP_AXES_address 0x2A
+#define ACT_TAP_STATUS_address 0x2B
+#define BW_RATE_address 0x2C
+#define POWER_CTL_address 0x2D
+#define INT_ENABLE_address 0x2E
+#define INT_MAP_address 0x2F
+#define INT_SOURCE_address 0x30
+#define DATA_FORMAT_address 0x31
+#define DATAX0_address 0x32
+#define DATAX1_address 0x33
+#define DATAY0_address 0x34
+#define DATAY1_address 0x35
+#define DATAZ0_address 0x36
+#define DATAZ1_address 0x37
+#define FIFO_CTL_address 0x38
+#define FIFO_STATUS_address 0x39
+
+#define ADXL345_READ        0x80
+#define ADXL345_WRITE       0x00
+
+// Function to initialize SPI
+void SPI0_Init() {
+    SPI0_CTRLA |=(1<<SPI_MASTER_bp)|(SPI_PRESC_DIV16_gc)|(1<<SPI_ENABLE_bp);
+    SPI0_CTRLB |= (SPI_MODE_3_gc);
+    SPI0_INTCTRL |=(1<<SPI_IE_bp);
+    SPI0_INTFLAGS |= (1<<SPI_IF_bp);
+    }
+void SPI0_Enable()
+{
+    SPI0.CTRLA |= SPI_ENABLE_bm;
+}
+
+void SPI0_Disable()
+{
+    SPI0.CTRLA &= ~SPI_ENABLE_bm;
+}
+uint8_t SPI0_ReadData()
+{
+ SPI0.DATA = 0xFF; //send dummy data
+ while (!(SPI0.INTFLAGS & SPI_IF_bm)); /* Waits until data are exchanged*/
+
+ return SPI0.DATA;
+}
+void SPI0_WriteData(uint8_t data)
+{
+ SPI0.DATA = data; //send data
+ while (!(SPI0.INTFLAGS & SPI_IF_bm)); /* Waits until data are exchanged*/
+}
+
+void SPI0_WaitDataready()
+{
+    while (!(SPI0.INTFLAGS & SPI_RXCIF_bm));
+}
+
+void main(void) {
+    // Initialize SPI
+    SPI0_Init();
+  
+    PORTA_DIRSET = PIN7_bm;  //SS IS OUTPUT
+    PORTA_DIRSET = PIN6_bm;  //clk IS OUTPUT
+    PORTA_DIRCLR = PIN5_bm; //MISO
+    PORTA_DIRSET = PIN4_bm ; //MOSI
+    
+    PORTA_OUTSET = PIN7_bm; //SS high
+    uint16_t x_out, y_out, z_out;
+    
+    /// clk init
+ 
+    ccp_write_io((void*) &(CLKCTRL_MCLKCTRLA) ,( CLKCTRL_CLKSEL_OSCHF_gc ));
+    //ccp_write_io((void*) &(CLKCTRL_MCLKCTRLB) ,( CLKCTRL_PEN_bm | CLKCTRL_PDIV_64X_gc ));
+    ccp_write_io((void*) &(CLKCTRL_MCLKCTRLC) ,(CLKCTRL_CFDSRC_CLKMAIN_gc | CLKCTRL_CFDEN_bm ));
+    ccp_write_io((void*) &(CLKCTRL_OSCHFCTRLA) ,(CLKCTRL_RUNSTDBY_bm | CLKCTRL_FRQSEL_1M_gc )); 
+//    ////enable measurement mode
+//    PORTA_OUTCLR = PIN7_bm; //SS low
+//    SPI0_WriteData(POWER_CTL_address | ADXL345_WRITE);
+//    SPI0_WriteData(0x08);
+//    PORTA_OUTSET = PIN7_bm; //SS high
+//    //////setting the g range on +-8g
+//    PORTA_OUTCLR = PIN7_bm; //SS low
+//    SPI0_WriteData(DATA_FORMAT_address | ADXL345_WRITE);
+//    SPI0_WriteData(0x02);
+//    PORTA_OUTSET = PIN7_bm; //SS high
+     
+      
+    uint8_t a;
+   
+    while (1) {
+  
+//    //// reading X Y Z values
+//    uint8_t xyz_data[6];
+//    PORTA_OUTCLR = PIN7_bm; //SS low
+//    SPI0_WriteData(0x32 | ADXL345_READ); //starting address
+//    for (int i=0; i<6; i++)
+//    {
+//     xyz_data[i]=SPI0_ReadData();  //reading 6 values
+//    }
+//    PORTA_OUTSET = PIN7_bm; //SS high
+//    ///////
+//    x_out = xyz_data[0] | (xyz_data[1] << 8) ; 
+//    x_out /= 64;
+//    y_out = xyz_data[2]| (xyz_data[3] <<8) ; 
+//    y_out /= 64;
+//    z_out = xyz_data[4]| (xyz_data[5] <<8) ; 
+//    z_out /= 64;  
+
+    PORTA_OUTCLR = PIN7_bm; //SS low
+    SPI0_WriteData(DEVID_address | ADXL345_READ);
+    PORTA_OUTSET = PIN7_bm; //SS high
+    }
+}
